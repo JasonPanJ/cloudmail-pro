@@ -48,7 +48,7 @@ watch(() => draftStore.setDraft, async () => {
   delete draft.draftId
   delete draft.attachments
 
-  if (!draft.content && !draft.subject && !(draft.receiveEmail.length > 0)) {
+  if (!draft.content && !draft.subject && !(draft.receiveEmail.length > 0) && !(draft.ccEmail?.length > 0) && !(draft.bccEmail?.length > 0)) {
     await db.value.draft.delete(draftId);
     await db.value.att.delete(draftId);
     draftStore.refreshList++

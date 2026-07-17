@@ -149,6 +149,21 @@ const emailService = {
 		return orm(c).insert(email).values({ ...params }).returning().get();
 	},
 
+	normalizeRecipients(recipients) {
+		if (!Array.isArray(recipients)) return [];
+		const seen = new Set();
+		return recipients.reduce((result, item) => {
+			if (typeof item !== 'string') return result;
+			const address = item.trim();
+			const key = address.toLowerCase();
+			if (address && !seen.has(key)) {
+				seen.add(key);
+				result.push(address);
+			}
+			return result;
+		}, []);
+	},
+
 	//邮件发送
 	async send(c, params, userId) {
 
@@ -157,12 +172,28 @@ const emailService = {
 			name, //发件人名字
 			sendType, //发件类型
 			emailId, //邮件id，如果是回复邮件会带
-			receiveEmail, //收件人邮箱
+			receiveEmail = [], //收件人邮箱
+			ccEmail = [], //抄送邮箱
+			bccEmail = [], //密送邮箱
 			text, //邮件纯文本
 			content, //邮件内容
 			subject, //邮件标题
 			attachments = [] //附件
 		} = params;
+
+		// 同一个地址只投递一次，优先级为 To > Cc > Bcc。
+		receiveEmail = this.normalizeRecipients(receiveEmail);
+		const toKeys = new Set(receiveEmail.map(item => item.toLowerCase()));
+		ccEmail = this.normalizeRecipients(ccEmail).filter(item => !toKeys.has(item.toLowerCase()));
+		const ccKeys = new Set(ccEmail.map(item => item.toLowerCase()));
+		bccEmail = this.normalizeRecipients(bccEmail).filter(item => !toKeys.has(item.toLowerCase()) && !ccKeys.has(item.toLowerCase()));
+		const allRecipients = [...receiveEmail, ...ccEmail, ...bccEmail];
+		if (receiveEmail.length === 0) {
+			throw new BizError(t('emptyRecipient'));
+		}
+		if (allRecipients.length > 50) {
+			throw new BizError(t('recipientLimit'));
+		}
 
 		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
 
@@ -177,7 +208,7 @@ const emailService = {
 		const roleRow = await roleService.selectById(c, userRow.type);
 
 		//判断接收方是不是全部为站内邮箱
-		const allInternal = receiveEmail.every(email => {
+		const allInternal = allRecipients.every(email => {
 			const domain = '@' + emailUtils.getDomain(email);
 			return domainList.includes(domain);
 		});
@@ -204,7 +235,7 @@ const emailService = {
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLimit'), 403);
 			}
 
-			if (userRow.sendCount + receiveEmail.length > roleRow.sendCount) {
+			if (userRow.sendCount + allRecipients.length > roleRow.sendCount) {
 				if (roleRow.sendType === 'day') throw new BizError(t('daySendLack'), 403);
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLack'), 403);
 			}
@@ -268,6 +299,8 @@ const emailService = {
 					name,
 					accountEmail: accountRow.email,
 					receiveEmail,
+					ccEmail,
+					bccEmail,
 					subject,
 					text,
 					html,
@@ -280,6 +313,8 @@ const emailService = {
 					name,
 					accountEmail: accountRow.email,
 					receiveEmail,
+					ccEmail,
+					bccEmail,
 					subject,
 					text,
 					html,
@@ -323,6 +358,8 @@ const emailService = {
 		});
 
 		emailData.recipient = JSON.stringify(recipient);
+		emailData.cc = JSON.stringify(ccEmail.map(address => ({ address, name: '' })));
+		emailData.bcc = JSON.stringify(bccEmail.map(address => ({ address, name: '' })));
 
 		if (sendType === 'reply') {
 			emailData.inReplyTo = emailRow.messageId;
@@ -331,7 +368,7 @@ const emailService = {
 
 		//如果权限有发送次数增加用户发送次数
 		if (roleRow.sendCount && roleRow.sendType !== 'internal') {
-			await userService.incrUserSendCount(c, receiveEmail.length, userId);
+			await userService.incrUserSendCount(c, allRecipients.length, userId);
 		}
 
 		//保存到数据库并返回结果
@@ -358,7 +395,7 @@ const emailService = {
 
 		//如果全是站内接收方，直接写入数据库
 		if (allInternal) {
-			await this.HandleOnSiteEmail(c, receiveEmail, emailResult, attList);
+			await this.HandleOnSiteEmail(c, { receiveEmail, ccEmail, bccEmail }, emailResult, attList);
 		}
 
 		const dateStr = dayjs().format('YYYY-MM-DD');
@@ -366,9 +403,9 @@ const emailService = {
 
 		//记录每天发件次数统计
 		if (!daySendTotal) {
-			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(receiveEmail.length), { expirationTtl: 60 * 60 * 24 });
+			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(allRecipients.length), { expirationTtl: 60 * 60 * 24 });
 		} else  {
-			daySendTotal = Number(daySendTotal) + receiveEmail.length
+			daySendTotal = Number(daySendTotal) + allRecipients.length
 			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(daySendTotal), { expirationTtl: 60 * 60 * 24 });
 		}
 
@@ -381,6 +418,8 @@ const emailService = {
 			to: [...params.receiveEmail],
 			subject: params.subject
 		};
+		if (params.ccEmail.length > 0) sendForm.cc = [...params.ccEmail];
+		if (params.bccEmail.length > 0) sendForm.bcc = [...params.bccEmail];
 
 		if (params.text) {
 			sendForm.text = params.text;
@@ -422,6 +461,8 @@ const emailService = {
 			html: params.html,
 			attachments: await this.toResendAttachments(params.attachments)
 		};
+		if (params.ccEmail.length > 0) sendForm.cc = [...params.ccEmail];
+		if (params.bccEmail.length > 0) sendForm.bcc = [...params.bccEmail];
 
 		if (params.sendType === 'reply') {
 			sendForm.headers = {
@@ -541,12 +582,15 @@ const emailService = {
 	},
 
 	//处理站内邮件发送
-	async HandleOnSiteEmail(c, receiveEmail, sendEmailData, attList) {
+	async HandleOnSiteEmail(c, recipients, sendEmailData, attList) {
+
+		const { receiveEmail, ccEmail, bccEmail } = recipients;
+		const allRecipients = [...receiveEmail, ...ccEmail, ...bccEmail];
 
 		const { noRecipient  } = await settingService.query(c);
 
 		//查询所有收件人账号信息
-		let accountList = await orm(c).select().from(account).where(inArray(account.email, receiveEmail)).all();
+		let accountList = await orm(c).select().from(account).where(inArray(account.email, allRecipients)).all();
 
 		//查询所有收件人权限身份
 		const userIds = accountList.map(accountRow => accountRow.userId);
@@ -555,10 +599,12 @@ const emailService = {
 		//封装数据库准备保存到数据库
 		const emailDataList = [];
 
-		for (const email of receiveEmail) {
+		for (const email of allRecipients) {
 
 			//把发件人邮件改成收件
 			const emailValues = {...sendEmailData}
+			// BCC 仅保留在发件人的“已发送”副本中，避免向站内收件人泄露密送名单。
+			emailValues.bcc = '[]';
 			emailValues.status = emailConst.status.RECEIVE;
 			emailValues.type = emailConst.type.RECEIVE;
 			emailValues.toEmail = email;

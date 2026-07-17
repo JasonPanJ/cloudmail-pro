@@ -14,8 +14,8 @@
           <Icon icon="material-symbols-light:close-rounded" width="22" height="22"/>
         </div>
       </div>
-      <div class="container">
-        <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail" >
+      <div class="container" :style="{ gridTemplateRows: `repeat(${2 + (showCc ? 1 : 0) + (showBcc ? 1 : 0)}, auto) 1fr auto` }">
+        <el-input-tag  @add-tag="value => addTagChange(value, 'receiveEmail')" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail" >
           <template #prefix>
             <div class="item-title" >{{ $t('recipient') }}</div>
             <el-select
@@ -38,10 +38,20 @@
             </el-select>
           </template>
           <template #suffix>
-            <div style="display: flex;margin-right: 3px;">
+            <div class="recipient-actions">
+              <button v-if="!showCc" type="button" class="recipient-action" @click.stop="showCc = true">{{ $t('cc') }}</button>
+              <button v-if="!showBcc" type="button" class="recipient-action" @click.stop="showBcc = true">{{ $t('bcc') }}</button>
               <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts" />
             </div>
           </template>
+        </el-input-tag>
+        <el-input-tag v-if="showCc" @add-tag="value => addTagChange(value, 'ccEmail')" tag-type="primary" size="default" v-model="form.ccEmail">
+          <template #prefix><div class="item-title">{{ $t('cc') }}</div></template>
+          <template #suffix><Icon class="recipient-close" icon="material-symbols-light:close-rounded" width="20" @click.stop="hideRecipientField('ccEmail')" /></template>
+        </el-input-tag>
+        <el-input-tag v-if="showBcc" @add-tag="value => addTagChange(value, 'bccEmail')" tag-type="primary" size="default" v-model="form.bccEmail">
+          <template #prefix><div class="item-title">{{ $t('bcc') }}</div></template>
+          <template #suffix><Icon class="recipient-close" icon="material-symbols-light:close-rounded" width="20" @click.stop="hideRecipientField('bccEmail')" /></template>
         </el-input-tag>
         <el-input v-model="form.subject" :placeholder="t('subject')" />
         <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
@@ -137,6 +147,8 @@ let sending = false
 const defValue = ref('')
 const contactsTabRef = ref({})
 const showContacts = ref(false)
+const showCc = ref(false)
+const showBcc = ref(false)
 const mySelect = ref()
 let selectStatus = false
 const backReply = reactive({
@@ -148,6 +160,8 @@ const backReply = reactive({
 const form = reactive({
   sendEmail: '',
   receiveEmail: [],
+  ccEmail: [],
+  bccEmail: [],
   accountId: -1,
   name: '',
   subject: '',
@@ -232,22 +246,29 @@ function inputChange(value) {
 
 }
 
-function addTagChange(val) {
+function addTagChange(val, field) {
 
   const emails = Array.from(new Set(
       val.split(/[,，]/).map(item => item.trim()).filter(item => item)
   ));
 
-  form.receiveEmail.splice(form.receiveEmail.length - 1, 1)
+  form[field].splice(form[field].length - 1, 1)
 
   let has = false
   emails.forEach(email => {
-    if (isEmail(email) && !form.receiveEmail.includes(email)) {
-      form.receiveEmail.push(email)
+    const usedRecipients = [...form.receiveEmail, ...form.ccEmail, ...form.bccEmail];
+    if (isEmail(email) && !usedRecipients.some(item => item.toLowerCase() === email.toLowerCase())) {
+      form[field].push(email)
       has = true
     }
   })
-  if (selectStatus && has) openSelect()
+  if (field === 'receiveEmail' && selectStatus && has) openSelect()
+}
+
+function hideRecipientField(field) {
+  if (form[field].length > 0) return;
+  if (field === 'ccEmail') showCc.value = false;
+  if (field === 'bccEmail') showBcc.value = false;
 }
 
 function clearContent() {
@@ -374,6 +395,8 @@ async function sendEmail() {
       form.subject = ''
       form.content = ''
       form.receiveEmail = []
+      form.ccEmail = []
+      form.bccEmail = []
       draftStore.setDraft = {...toRaw(form)}
     }
 
@@ -400,16 +423,21 @@ async function sendEmail() {
 }
 
 function addRecipientRecord() {
+  const recipients = [...form.receiveEmail, ...form.ccEmail, ...form.bccEmail];
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.filter(
-      email => !form.receiveEmail.includes(email)
+      email => !recipients.includes(email)
   );
 
-  writerStore.sendRecipientRecord.unshift(...form.receiveEmail);
+  writerStore.sendRecipientRecord.unshift(...recipients);
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.slice(0, 500);
 }
 
 function resetForm() {
   form.receiveEmail = []
+  form.ccEmail = []
+  form.bccEmail = []
+  showCc.value = false
+  showBcc.value = false
   form.subject = ''
   form.content = ''
   form.manyType = null
@@ -521,7 +549,12 @@ function open() {
 }
 
 function openDraft(draft) {
+  resetForm()
   Object.assign(form, {...draft})
+  form.ccEmail = draft.ccEmail || []
+  form.bccEmail = draft.bccEmail || []
+  showCc.value = form.ccEmail.length > 0
+  showBcc.value = form.bccEmail.length > 0
   defValue.value = ''
   setTimeout(() => defValue.value = form.content)
   show.value = true;
@@ -557,7 +590,7 @@ function close() {
     return;
   }
 
-  if (!(form.content || form.subject || form.receiveEmail.length > 0)) {
+  if (!(form.content || form.subject || form.receiveEmail.length > 0 || form.ccEmail.length > 0 || form.bccEmail.length > 0)) {
     show.value = false
     resetForm()
     return;
@@ -567,7 +600,8 @@ function close() {
     let subjectFlag = form.subject === backReply.subject
     let contentFlag = editor.value.getContent() === backReply.content
     let receiveFlag = form.receiveEmail.length === 1 && form.receiveEmail[0] === backReply.receiveEmail[0]
-    if (backReply.sendType === 'forward' && form.receiveEmail.length === 0) {
+        && form.ccEmail.length === 0 && form.bccEmail.length === 0
+    if (backReply.sendType === 'forward' && form.receiveEmail.length === 0 && form.ccEmail.length === 0 && form.bccEmail.length === 0) {
       receiveFlag = true;
     }
     if (subjectFlag && contentFlag && receiveFlag) {
@@ -691,7 +725,6 @@ function close() {
     .container {
       height: 100%;
       display: grid;
-      grid-template-rows: auto auto 1fr auto;
       gap: 15px;
 
       .item-title {
@@ -767,6 +800,27 @@ function close() {
 
 .add-contact {
   color: var(--regular-text-color)
+}
+
+.recipient-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 3px;
+}
+
+.recipient-action {
+  padding: 0;
+  border: 0;
+  color: var(--el-color-primary);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.recipient-close {
+  color: var(--regular-text-color);
+  cursor: pointer;
 }
 
 .write-select {
