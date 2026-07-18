@@ -44,11 +44,71 @@
 ## 项目展示
 
 - [在线演示](https://skymail.ink)<br>
-- [部署文档](https://doc.skymail.ink)<br>
+- 部署方式：请按照下方图文流程操作。
 
 | ![](/doc/demo/demo1.png) | ![](/doc/demo/demo2.png) |
 |-----------------------|-----------------------|
 | ![](/doc/demo/demo3.png) | ![](/doc/demo/demo4.png) |
+
+## 图文部署指南
+
+项目内置 GitHub Actions 工作流，可自动安装依赖、构建前端、创建或复用 D1/KV、部署 Cloudflare Worker，并初始化数据库。
+
+### 1. Fork 项目仓库
+
+打开 [JasonPanJ/cloudmail-pro](https://github.com/JasonPanJ/cloudmail-pro)，点击右上角 **Fork**，将项目复制到自己的 GitHub 账户。保留默认分支名称 `main`。
+
+![Fork 项目仓库](mail-vue/public/image/deploy/fork-repository.svg)
+
+### 2. 准备 Cloudflare 权限
+
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)。
+2. 在账户页面记录 **Account ID**。
+3. 创建部署用 API Token，并授予 Workers Scripts、D1、KV 与账户设置相关权限。
+4. 准备一个已经接入 Cloudflare 的邮箱域名。
+
+![准备 Cloudflare 权限](mail-vue/public/image/deploy/cloudflare-access.svg)
+
+### 3. 配置 GitHub Actions Secrets
+
+进入 Fork 后的仓库，依次打开 **Settings → Secrets and variables → Actions → New repository secret**，添加以下变量：
+
+| Secret | 是否必填 | 说明 |
+| --- | :---: | --- |
+| `CLOUDFLARE_API_TOKEN` | 是 | 上一步创建的 Cloudflare API Token |
+| `CLOUDFLARE_ACCOUNT_ID` | 是 | Cloudflare Account ID |
+| `DOMAIN` | 是 | 邮箱域名 JSON 数组，例如 `["example.com"]` |
+| `ADMIN` | 是 | 管理员邮箱，例如 `admin@example.com` |
+| `JWT_SECRET` | 是 | 随机长字符串，不要包含 `?`、`%`、`#`、`/`、`\` |
+| `CUSTOM_DOMAIN` | 推荐 | Worker 自定义访问域名，例如 `mail.example.com` |
+| `NAME` | 否 | Worker、D1 和 KV 名称，默认 `cloud-mail` |
+| `D1_DATABASE_ID` | 否 | 留空时工作流自动创建或复用同名 D1 |
+| `KV_NAMESPACE_ID` | 否 | 留空时工作流自动创建或复用同名 KV |
+| `R2_BUCKET_NAME` | 否 | 需要收发附件时填写已有 R2 Bucket 名称 |
+
+`JWT_SECRET`、API Token 等敏感信息只能放在 Secrets 中，不要写入 README、代码或公开日志。
+
+![配置 GitHub Secrets](mail-vue/public/image/deploy/github-secrets.svg)
+
+### 4. 运行自动部署
+
+1. 打开仓库的 **Actions** 页面。
+2. 选择 Cloudflare 部署工作流，点击 **Run workflow**。
+3. 等待 **Build and Deploy** 与 **Initialize database** 全部成功。
+4. 以后向 `main` 分支推送 `mail-vue` 或 `mail-worker` 修改时，工作流会自动重新部署。
+
+![运行 GitHub Actions 部署](mail-vue/public/image/deploy/run-deployment.svg)
+
+### 5. 配置域名与 Email Routing
+
+1. 在 Cloudflare **Workers & Pages** 中，为 Worker 添加与 `CUSTOM_DOMAIN` 一致的自定义域名。
+2. 打开 **Email → Email Routing** 并启用邮件路由。
+3. 添加 **Catch-all** 规则，目标选择 **Send to a Worker**，然后选择刚部署的 Worker。
+4. 访问自定义域名，测试管理员登录、账户注册与收信。
+
+![配置 Email Routing](mail-vue/public/image/deploy/email-routing.svg)
+
+> 如果数据库初始化步骤失败，请先确认 `CUSTOM_DOMAIN` 已正确解析到 Worker，再访问 `https://你的项目域名/api/init/你的JWT_SECRET` 手动初始化；成功响应为 `success`。
 
 
 
