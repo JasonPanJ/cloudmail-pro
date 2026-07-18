@@ -1,25 +1,19 @@
 <p align="center">
     <img src="doc/demo/logo.png" width="80px" />
-    <h1 align="center">Cloud Mail</h1>
-    <p align="center">基于 Cloudflare 的简约响应式邮箱服务，支持邮件发送、附件收发 🎉</p> 
+    <h1 align="center">CloudMail Pro</h1>
+    <p align="center">经过生产验证的 Cloudflare 邮箱服务，支持 To、CC、BCC、附件收发与完整后台管理</p>
     <p align="center">
         简体中文 | <a href="/README-en.md" style="margin-left: 5px">English </a>
     </p>
     <p align="center">
-        <a href="https://github.com/maillab/cloud-mail/tree/main?tab=MIT-1-ov-file" target="_blank" >
+        <a href="https://github.com/JasonPanJ/cloudmail-pro/blob/main/LICENSE" target="_blank" >
             <img src="https://img.shields.io/badge/license-MIT-green" />
         </a>    
-        <a href="https://github.com/maillab/cloud-mail/releases" target="_blank" >
-            <img src="https://img.shields.io/github/v/release/maillab/cloud-mail" alt="releases" />
+        <a href="https://github.com/JasonPanJ/cloudmail-pro/issues" >
+            <img src="https://img.shields.io/github/issues/JasonPanJ/cloudmail-pro" alt="issues" />
         </a>  
-        <a href="https://github.com/maillab/cloud-mail/issues" >
-            <img src="https://img.shields.io/github/issues/maillab/cloud-mail" alt="issues" />
-        </a>  
-        <a href="https://github.com/maillab/cloud-mail/stargazers" target="_blank">
-            <img src="https://img.shields.io/github/stars/maillab/cloud-mail" alt="stargazers" />
-        </a>  
-        <a href="https://github.com/maillab/cloud-mail/forks" target="_blank" >
-            <img src="https://img.shields.io/github/forks/maillab/cloud-mail" alt="forks" />
+        <a href="https://github.com/JasonPanJ/cloudmail-pro/stargazers" target="_blank">
+            <img src="https://img.shields.io/github/stars/JasonPanJ/cloudmail-pro" alt="stargazers" />
         </a>
     </p>
     <p align="center">
@@ -32,7 +26,20 @@
 
 ## 项目简介
 
-只需要一个域名，就可以创建多个不同的邮箱，类似各大邮箱平台，本项目支持署到 Cloudflare Workers ，降低服务器成本，搭建自己的邮箱服务
+只需要一个域名，即可在 Cloudflare Workers 上搭建支持多邮箱账户的响应式邮件服务。CloudMail Pro 基于 [maillab/cloud-mail](https://github.com/maillab/cloud-mail) 的最新稳定代码，保留上游能力，并加入经过真实 Worker 部署验证的 CC/BCC 和存储绑定配置。
+
+## Pro 版本特性
+
+- **完整收件人模型**：写信、草稿、邮件详情和发送服务均支持 To、CC、BCC。
+- **隐私保护**：内部投递时不会向收件人副本泄露 BCC 地址。
+- **一致的收件人校验**：To、CC、BCC 去重并统一参与权限、配额、统计和 50 人上限检查。
+- **双发送通道**：Cloudflare Email Sending 与 Resend 均支持 CC/BCC。
+- **已验证的 Cloudflare 绑定**：复用现有 D1 与 KV，`keep_vars = true` 保留云端 `admin`、`domain`、`jwt_secret` 等变量。
+- **上游兼容**：包含上游最新的空值处理、OAuth 状态和查询性能修复。
+
+生产基线已使用 Worker 版本 `fcc450be-0cfb-42e0-951a-743ea9b3324d` 验证；前端构建、Worker 上传、D1/KV 访问和线上健康检查均通过。
+
+三个相关项目的逐项功能、优缺点和安全性对比见 [项目对比报告](doc/PROJECT_COMPARISON.md)。
 
 ## 项目展示
 

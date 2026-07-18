@@ -1,25 +1,19 @@
 <p align="center">
     <img src="doc/demo/logo.png" width="80px" />
-    <h1 align="center">Cloud Mail</h1>
-    <p align="center">A simple, responsive email service designed to run on Cloudflare Workers 🎉</p> 
+    <h1 align="center">CloudMail Pro</h1>
+    <p align="center">A production-validated Cloudflare email service with To, CC, BCC, attachments, and administration</p>
     <p align="center">
        <a href="/README.md" style="margin-left: 5px">简体中文</a> | English 
     </p>
     <p align="center">
-        <a href="https://github.com/maillab/cloud-mail/tree/main?tab=MIT-1-ov-file" target="_blank" >
+        <a href="https://github.com/JasonPanJ/cloudmail-pro/blob/main/LICENSE" target="_blank" >
             <img src="https://img.shields.io/badge/license-MIT-green" />
         </a>    
-        <a href="https://github.com/maillab/cloud-mail/releases" target="_blank" >
-            <img src="https://img.shields.io/github/v/release/maillab/cloud-mail" alt="releases" />
+        <a href="https://github.com/JasonPanJ/cloudmail-pro/issues" >
+            <img src="https://img.shields.io/github/issues/JasonPanJ/cloudmail-pro" alt="issues" />
         </a>  
-        <a href="https://github.com/maillab/cloud-mail/issues" >
-            <img src="https://img.shields.io/github/issues/maillab/cloud-mail" alt="issues" />
-        </a>  
-        <a href="https://github.com/maillab/cloud-mail/stargazers" target="_blank">
-            <img src="https://img.shields.io/github/stars/maillab/cloud-mail" alt="stargazers" />
-        </a>  
-        <a href="https://github.com/maillab/cloud-mail/forks" target="_blank" >
-            <img src="https://img.shields.io/github/forks/maillab/cloud-mail" alt="forks" />
+        <a href="https://github.com/JasonPanJ/cloudmail-pro/stargazers" target="_blank">
+            <img src="https://img.shields.io/github/stars/JasonPanJ/cloudmail-pro" alt="stargazers" />
         </a>
     </p>
     <p align="center">
@@ -30,7 +24,18 @@
 </p>
 
 ## Description
-With only one domain, you can create multiple different email addresses, similar to major email platforms. This project can be deployed on Cloudflare Workers to reduce server costs and build your own email service.
+With one domain, you can run a responsive multi-account email service on Cloudflare Workers. CloudMail Pro tracks the stable foundation from [maillab/cloud-mail](https://github.com/maillab/cloud-mail) and adds production-validated CC/BCC support and Cloudflare storage bindings.
+
+## Pro additions
+
+- To, CC, and BCC across compose, drafts, message details, and delivery.
+- BCC privacy for internal recipient copies.
+- Recipient deduplication and shared permission, quota, statistics, and 50-recipient checks.
+- CC/BCC support through both Cloudflare Email Sending and Resend.
+- Existing D1/KV bindings with `keep_vars = true` for cloud-managed variables and secrets.
+- Current upstream correctness and query-performance fixes.
+
+The production baseline was validated as Worker version `fcc450be-0cfb-42e0-951a-743ea9b3324d`. See the [project comparison](doc/PROJECT_COMPARISON.md) for the detailed analysis.
 ## Project Showcase
 
 - [Live Demo](https://skymail.ink)<br>
