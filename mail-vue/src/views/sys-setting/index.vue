@@ -391,7 +391,7 @@
               <div class="concerning-item">
                 <span>{{ $t('version') }} :</span>
                 <el-badge is-dot :hidden="!hasUpdate">
-                  <el-button @click="jump('https://github.com/maillab/cloud-mail/releases')">
+                  <el-button @click="jump('https://github.com/JasonPanJ/cloudmail-pro/releases')">
                     {{ currentVersion }}
                     <template #icon>
                       <Icon icon="qlementine-icons:version-control-16" style="font-size: 20px" color="#1890FF"/>
@@ -402,7 +402,7 @@
               <div class="concerning-item">
                 <span>{{ $t('community') }} : </span>
                 <div class="community">
-                  <el-button @click="jump('https://github.com/maillab/cloud-mail')">
+                  <el-button @click="jump('https://github.com/JasonPanJ/cloudmail-pro')">
                     Github
                     <template #icon>
                       <Icon icon="codicon:github-inverted" width="22" height="22"/>
@@ -418,7 +418,7 @@
               </div>
               <div class="concerning-item">
                 <span>{{ $t('support') }} : </span>
-                <el-button @click="jump('https://doc.skymail.ink/support.html')">
+                <el-button @click="supportQrShow = true">
                   {{ t('supportDesc') }}
                   <template #icon>
                     <Icon color="#79D6B5" icon="simple-icons:buymeacoffee" width="20" height="20"/>
@@ -427,7 +427,7 @@
               </div>
               <div class="concerning-item">
                 <span>{{ $t('help') }} : </span>
-                <el-button @click="jump('https://doc.skymail.ink')">
+                <el-button @click="deployGuideShow = true">
                   {{ t('document') }}
                   <template #icon>
                     <Icon color="#79D6B5" icon="fluent-color:document-32" width="18" height="18"/>
@@ -438,6 +438,37 @@
           </div>
         </div>
       </div>
+
+      <el-dialog v-model="deployGuideShow" :title="deployGuide.title" width="min(94vw, 920px)" top="3vh">
+        <div class="deploy-guide">
+          <p class="deploy-intro">{{ deployGuide.intro }}</p>
+          <section v-for="(step, index) in deployGuide.steps" :key="step.title" class="deploy-step">
+            <div class="deploy-step-content">
+              <span class="deploy-step-number">{{ index + 1 }}</span>
+              <h3>{{ step.title }}</h3>
+              <p>{{ step.description }}</p>
+              <ul>
+                <li v-for="item in step.items" :key="item" v-html="item"></li>
+              </ul>
+              <el-button v-if="step.link" type="primary" plain @click="jump(step.link)">
+                {{ step.linkText }}
+                <template #icon>
+                  <Icon icon="mdi:open-in-new" width="16" height="16"/>
+                </template>
+              </el-button>
+            </div>
+            <img class="deploy-step-image" :src="step.image" :alt="step.title"/>
+          </section>
+          <el-alert :title="deployGuide.notice" type="warning" :closable="false" show-icon/>
+        </div>
+      </el-dialog>
+
+      <el-dialog v-model="supportQrShow" :title="$t('support')" width="min(90vw, 400px)" align-center>
+        <div class="support-qr">
+          <img src="/image/wechat-appreciation.jpg" :alt="$t('supportDesc')"/>
+          <p>{{ $t('supportQrTip') }}</p>
+        </div>
+      </el-dialog>
 
       <!-- Dialogs remain the same -->
       <el-dialog v-model="editTitleShow" :title="$t('changeTitle')" width="340" @closed="editTitle = setting.title">
@@ -825,7 +856,7 @@ defineOptions({
   name: 'sys-setting'
 })
 
-const currentVersion = 'v3.0.0'
+const currentVersion = 'v3.0.0.1'
 const hasUpdate = ref(false)
 let getUpdateErrorCount = 1;
 const {t, locale} = useI18n();
@@ -833,6 +864,8 @@ const firstLoading = ref(true)
 const settingReady = ref(false)
 const backgroundImage = ref('')
 const localUpShow = ref(false)
+const supportQrShow = ref(false)
+const deployGuideShow = ref(false)
 const accountStore = useAccountStore();
 const userStore = useUserStore();
 const editTitleShow = ref(false)
@@ -850,6 +883,29 @@ const showResendList = ref(false)
 const settingStore = useSettingStore();
 const uiStore = useUiStore();
 const {settings: setting} = storeToRefs(settingStore);
+const deployGuide = computed(() => locale.value === 'en' ? {
+  title: 'CloudMail Pro deployment guide',
+  intro: 'Deploy with the included GitHub Actions workflow. It builds the Vue app, creates or reuses D1 and KV, deploys the Worker, and initializes the database.',
+  notice: 'Keep JWT_SECRET and the Cloudflare API token private. Configure Email Routing after the Worker deployment succeeds.',
+  steps: [
+    {title: 'Fork the repository', description: 'Create a copy under your GitHub account so Actions can deploy and update it.', items: ['Open <strong>JasonPanJ/cloudmail-pro</strong> and click <strong>Fork</strong>.', 'Keep the default branch named <code>main</code>.'], image: '/image/deploy/fork-repository.svg', link: 'https://github.com/JasonPanJ/cloudmail-pro/fork', linkText: 'Fork repository'},
+    {title: 'Prepare Cloudflare access', description: 'Create an API token and note your account ID. D1 and KV can be created automatically.', items: ['Grant Workers Scripts, D1, KV and Account Settings permissions.', 'Copy the account ID from the Cloudflare dashboard.', 'Add your mail domain to Cloudflare.'], image: '/image/deploy/cloudflare-access.svg', link: 'https://dash.cloudflare.com/profile/api-tokens', linkText: 'Create API token'},
+    {title: 'Add GitHub Actions secrets', description: 'Open Settings → Secrets and variables → Actions in the fork, then add repository secrets.', items: ['Required: <code>CLOUDFLARE_API_TOKEN</code>, <code>CLOUDFLARE_ACCOUNT_ID</code>, <code>DOMAIN</code>, <code>ADMIN</code>, <code>JWT_SECRET</code>.', '<code>DOMAIN</code> must be a JSON array, for example <code>[&quot;example.com&quot;]</code>.', 'Recommended: <code>CUSTOM_DOMAIN</code>. D1, KV and R2 identifiers are optional.'], image: '/image/deploy/github-secrets.svg', link: 'https://github.com/JasonPanJ/cloudmail-pro/settings/secrets/actions', linkText: 'Open Actions secrets'},
+    {title: 'Run the deployment', description: 'Open Actions, select the Cloudflare deployment workflow and run it manually.', items: ['Wait until Build and Deploy and Initialize database both succeed.', 'The workflow output contains the Worker deployment result.', 'Future pushes to <code>main</code> automatically redeploy changes.'], image: '/image/deploy/run-deployment.svg', link: 'https://github.com/JasonPanJ/cloudmail-pro/actions', linkText: 'Open GitHub Actions'},
+    {title: 'Configure domain and Email Routing', description: 'Connect the deployed Worker to your domain, then send incoming mail to it.', items: ['Add the same custom domain used by <code>CUSTOM_DOMAIN</code>.', 'In Email → Email Routing, enable routing and add a Catch-all rule.', 'Choose <strong>Send to a Worker</strong>, select the deployed Worker, then test registration and incoming mail.'], image: '/image/deploy/email-routing.svg'}
+  ]
+} : {
+  title: 'CloudMail Pro 图文部署流程',
+  intro: '使用仓库内置的 GitHub Actions 自动部署：工作流会构建 Vue 前端、创建或复用 D1 与 KV、发布 Worker，并自动初始化数据库。',
+  notice: 'JWT_SECRET 和 Cloudflare API Token 属于敏感信息，请勿公开。Worker 部署成功后仍需手动配置 Email Routing。',
+  steps: [
+    {title: 'Fork 项目仓库', description: '先把项目复制到你自己的 GitHub 账户，后续部署和更新都从你的仓库执行。', items: ['打开 <strong>JasonPanJ/cloudmail-pro</strong>，点击右上角 <strong>Fork</strong>。', '保留默认分支名称 <code>main</code>。'], image: '/image/deploy/fork-repository.svg', link: 'https://github.com/JasonPanJ/cloudmail-pro/fork', linkText: '前往 Fork 仓库'},
+    {title: '准备 Cloudflare 权限', description: '创建部署用 API Token，并记录账户 ID；D1 和 KV 可以让工作流自动创建。', items: ['API Token 需要 Workers Scripts、D1、KV 和账户设置相关权限。', '在 Cloudflare 仪表盘复制 Account ID。', '准备一个已接入 Cloudflare 的邮箱域名。'], image: '/image/deploy/cloudflare-access.svg', link: 'https://dash.cloudflare.com/profile/api-tokens', linkText: '创建 API Token'},
+    {title: '填写 GitHub Actions Secrets', description: '进入仓库 Settings → Secrets and variables → Actions，新建 Repository secrets。', items: ['必填：<code>CLOUDFLARE_API_TOKEN</code>、<code>CLOUDFLARE_ACCOUNT_ID</code>、<code>DOMAIN</code>、<code>ADMIN</code>、<code>JWT_SECRET</code>。', '<code>DOMAIN</code> 必须是 JSON 数组，例如 <code>[&quot;example.com&quot;]</code>。', '推荐填写 <code>CUSTOM_DOMAIN</code>；D1、KV 和 R2 标识均为可选。'], image: '/image/deploy/github-secrets.svg', link: 'https://github.com/JasonPanJ/cloudmail-pro/settings/secrets/actions', linkText: '打开 Secrets 设置'},
+    {title: '运行自动部署', description: '打开 Actions，选择 Cloudflare 部署工作流并手动运行。', items: ['等待 Build and Deploy 与 Initialize database 全部显示成功。', '工作流日志会显示 Worker 的部署结果。', '以后向 <code>main</code> 推送修改会自动重新部署。'], image: '/image/deploy/run-deployment.svg', link: 'https://github.com/JasonPanJ/cloudmail-pro/actions', linkText: '打开 GitHub Actions'},
+    {title: '配置域名与邮件路由', description: '把域名连接到已部署的 Worker，再将收到的邮件交给 Worker 处理。', items: ['在 Workers & Pages 中添加与 <code>CUSTOM_DOMAIN</code> 相同的自定义域名。', '进入 Email → Email Routing，启用邮件路由并添加 Catch-all 规则。', '目标选择 <strong>Send to a Worker</strong>，选中刚部署的 Worker，最后测试注册和收信。'], image: '/image/deploy/email-routing.svg'}
+  ]
+});
 const editTitle = ref('')
 const settingLoading = ref(false)
 const clearS3Loading = ref(false)
@@ -1504,6 +1560,86 @@ function editSetting(settingForm, refreshStatus = true) {
 </script>
 
 <style scoped lang="scss">
+.deploy-guide {
+  max-height: 76vh;
+  overflow-y: auto;
+  padding-right: 8px;
+
+  .deploy-intro {
+    margin: 0 0 18px;
+    color: var(--el-text-color-regular);
+    line-height: 1.7;
+  }
+}
+
+.deploy-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr);
+  align-items: center;
+  gap: 24px;
+  padding: 22px 0;
+  border-top: 1px solid var(--el-border-color-lighter);
+
+  &:nth-of-type(even) {
+    .deploy-step-content { order: 2; }
+    .deploy-step-image { order: 1; }
+  }
+
+  h3 { margin: 0 0 8px; font-size: 18px; }
+  p { margin: 0 0 10px; color: var(--el-text-color-regular); line-height: 1.65; }
+  ul { margin: 0 0 14px; padding-left: 20px; color: var(--el-text-color-regular); line-height: 1.75; }
+}
+
+.deploy-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  font-weight: 600;
+}
+
+.deploy-step-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+@media (max-width: 720px) {
+  .deploy-step {
+    grid-template-columns: 1fr;
+    .deploy-step-content, .deploy-step-image { order: initial !important; }
+  }
+}
+
+.support-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+
+  img {
+    display: block;
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+    border-radius: 8px;
+  }
+
+  p {
+    margin: 0;
+    color: var(--el-text-color-secondary);
+    text-align: center;
+  }
+}
+
 .settings-container {
   height: 100%;
   overflow: hidden;

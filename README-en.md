@@ -39,12 +39,72 @@ The production baseline was validated as Worker version `fcc450be-0cfb-42e0-951a
 ## Project Showcase
 
 - [Live Demo](https://skymail.ink)<br>
-- [Deployment Guide](https://doc.skymail.ink/en/)<br>
+- Deployment: follow the illustrated guide below.
 
 
 | ![](/doc/demo/demo1.png) | ![](/doc/demo/demo2.png) |
 |--------------------------|--------------------------|
 | ![](/doc/demo/demo3.png) | ![](/doc/demo/demo4.png) |
+
+## Illustrated Deployment Guide
+
+The included GitHub Actions workflow installs dependencies, builds the frontend, creates or reuses D1/KV, deploys the Cloudflare Worker, and initializes the database.
+
+### 1. Fork the repository
+
+Open [JasonPanJ/cloudmail-pro](https://github.com/JasonPanJ/cloudmail-pro), click **Fork**, and copy the project to your GitHub account. Keep the default branch named `main`.
+
+![Fork the repository](mail-vue/public/image/deploy/fork-repository.svg)
+
+### 2. Prepare Cloudflare access
+
+1. Sign in to the [Cloudflare Dashboard](https://dash.cloudflare.com/).
+2. Copy your **Account ID** from the account page.
+3. Create an API Token with Workers Scripts, D1, KV, and account settings permissions.
+4. Prepare a mail domain already connected to Cloudflare.
+
+![Prepare Cloudflare access](mail-vue/public/image/deploy/cloudflare-access.svg)
+
+### 3. Configure GitHub Actions secrets
+
+In the forked repository, open **Settings → Secrets and variables → Actions → New repository secret**, then add:
+
+| Secret | Required | Description |
+| --- | :---: | --- |
+| `CLOUDFLARE_API_TOKEN` | Yes | Cloudflare API Token created above |
+| `CLOUDFLARE_ACCOUNT_ID` | Yes | Cloudflare Account ID |
+| `DOMAIN` | Yes | Mail-domain JSON array, for example `["example.com"]` |
+| `ADMIN` | Yes | Administrator email, for example `admin@example.com` |
+| `JWT_SECRET` | Yes | Random long string without `?`, `%`, `#`, `/`, or `\` |
+| `CUSTOM_DOMAIN` | Recommended | Custom Worker hostname, for example `mail.example.com` |
+| `NAME` | No | Worker, D1, and KV name; defaults to `cloud-mail` |
+| `D1_DATABASE_ID` | No | Leave empty to create or reuse a same-name D1 database |
+| `KV_NAMESPACE_ID` | No | Leave empty to create or reuse a same-name KV namespace |
+| `R2_BUCKET_NAME` | No | Existing R2 bucket name when attachments are required |
+
+Store `JWT_SECRET`, the API Token, and other sensitive values only in Secrets. Never commit them to source code or documentation.
+
+![Configure GitHub secrets](mail-vue/public/image/deploy/github-secrets.svg)
+
+### 4. Run the deployment
+
+1. Open the repository's **Actions** page.
+2. Select the Cloudflare deployment workflow and click **Run workflow**.
+3. Wait for **Build and Deploy** and **Initialize database** to succeed.
+4. Later pushes that change `mail-vue` or `mail-worker` on `main` trigger another deployment automatically.
+
+![Run the GitHub Actions deployment](mail-vue/public/image/deploy/run-deployment.svg)
+
+### 5. Configure the domain and Email Routing
+
+1. In Cloudflare **Workers & Pages**, add the custom domain specified by `CUSTOM_DOMAIN`.
+2. Open **Email → Email Routing** and enable routing.
+3. Add a **Catch-all** rule, choose **Send to a Worker**, and select the deployed Worker.
+4. Open the custom domain and test administrator login, registration, and incoming mail.
+
+![Configure Email Routing](mail-vue/public/image/deploy/email-routing.svg)
+
+> If database initialization fails, first verify that `CUSTOM_DOMAIN` resolves to the Worker. Then visit `https://your-project-domain/api/init/YOUR_JWT_SECRET` to initialize manually; a successful response is `success`.
 
 ## Features
 
