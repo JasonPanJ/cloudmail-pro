@@ -148,9 +148,11 @@ cloud-mail
 
 ## 赞助
 
-<a href="https://doc.skymail.ink/support.html" >
-<img width="170px" src="./doc/images/support.png" alt="">
-</a>
+如果 CloudMail Pro 对你有帮助，欢迎使用微信扫码赞赏，感谢支持项目持续维护。
+
+<p align="center">
+  <img width="320px" src="./doc/images/jason-wechat-appreciation.jpg" alt="CloudMail Pro 微信赞赏码">
+</p>
 
 ## 许可证
 

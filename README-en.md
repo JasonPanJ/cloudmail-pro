@@ -140,9 +140,11 @@ cloud-mail
 
 ## Sponsor
 
-<a href="https://doc.skymail.ink/support.html">
-<img width="170px" src="./doc/images/support.png" alt="">
-</a>
+If CloudMail Pro helps you, you can support its continued maintenance by scanning the WeChat appreciation code below.
+
+<p align="center">
+  <img width="320px" src="./doc/images/jason-wechat-appreciation.jpg" alt="CloudMail Pro WeChat appreciation code">
+</p>
 
 ## License
 
